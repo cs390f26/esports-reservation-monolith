@@ -1,23 +1,29 @@
-import os
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Flask, g, jsonify, redirect, request
+from flask import Flask, current_app, g, jsonify, redirect, request
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# ESPORTS_DB lets the server and the scripts share a database file outside the repo.
-DATABASE = os.environ.get("ESPORTS_DB", os.path.join(BASE_DIR, "esports.db"))
+from esports.database import database_path
+
 START_HOURS = (10, 12, 14, 16, 18, 20)
 COMPUTER_STATUSES = ("AVAILABLE", "IN_USE", "MAINTENANCE", "OFFLINE")
 EQUIPMENT_STATUSES = COMPUTER_STATUSES
 EQUIPMENT_CATEGORIES = ("HEADSET", "CONTROLLER")
 
-app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "ui"), static_url_path="")
+# The UI in static/ is served from the site root, next to the API.
+app = Flask(__name__, static_url_path="")
+# Tests point this at a temporary file.
+app.config["DATABASE"] = str(database_path())
+
+
+def now():
+    """The lounge's local time. Tests replace this to control the clock."""
+    return datetime.now()
 
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE, isolation_level=None)
+        g.db = sqlite3.connect(current_app.config["DATABASE"], isolation_level=None)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
@@ -134,7 +140,7 @@ def available_equipment_ids(db, start):
     ]
 
 
-def block_payload(db, day, hour, now):
+def block_payload(db, day, hour, current):
     start, end = block_times(day, hour)
     return {
         "date": day.isoformat(),
@@ -142,17 +148,17 @@ def block_payload(db, day, hour, now):
         "end_hour": hour + 2,
         "start_time": start.isoformat(),
         "end_time": end.isoformat(),
-        "in_progress": start <= now < end,
+        "in_progress": start <= current < end,
         "space_ids": available_space_ids(db, start),
         "equipment_ids": available_equipment_ids(db, start),
     }
 
 
-def current_or_next(now):
-    day = now.date()
+def current_or_next(current):
+    day = current.date()
     for hour in START_HOURS:
         _start, end = block_times(day, hour)
-        if now < end:
+        if current < end:
             return day, hour
     return day + timedelta(days=1), START_HOURS[0]
 
@@ -205,12 +211,8 @@ def inventory():
     db = get_db()
     return jsonify(
         spaces=[space_json(row) for row in db.execute("SELECT * FROM Spaces ORDER BY space_id")],
-        computers=[
-            computer_json(row) for row in db.execute("SELECT * FROM Computers ORDER BY computer_id")
-        ],
-        equipment=[
-            equipment_json(row) for row in db.execute("SELECT * FROM Equipment ORDER BY equipment_id")
-        ],
+        computers=[computer_json(row) for row in db.execute("SELECT * FROM Computers ORDER BY computer_id")],
+        equipment=[equipment_json(row) for row in db.execute("SELECT * FROM Equipment ORDER BY equipment_id")],
     )
 
 
@@ -355,23 +357,23 @@ def availability():
     raw_hour = request.args.get("start_hour")
     if raw_hour is not None and raw_date is None:
         return error(400, "MISSING_DATE", "Include date when filtering by start_hour.", field="date")
-    now = datetime.now()
+    current = now()
     db = get_db()
     if raw_date is None:
-        day, hour = current_or_next(now)
-        return jsonify([block_payload(db, day, hour, now)])
+        day, hour = current_or_next(current)
+        return jsonify([block_payload(db, day, hour, current)])
     day = parse_date(raw_date)
     if day is None:
         return error(400, "INVALID_DATE", "date must be a calendar date in YYYY-MM-DD format.", field="date")
     if raw_hour is None:
-        return jsonify([block_payload(db, day, hour, now) for hour in START_HOURS])
+        return jsonify([block_payload(db, day, hour, current) for hour in START_HOURS])
     try:
         hour = int(raw_hour)
     except ValueError:
         hour = None
     if hour not in START_HOURS:
         return error(400, "INVALID_TIME_BLOCK", "Choose one of the available time blocks.", field="start_hour")
-    return jsonify([block_payload(db, day, hour, now)])
+    return jsonify([block_payload(db, day, hour, current)])
 
 
 @app.get("/reservations")
@@ -392,9 +394,9 @@ def list_reservations():
         if flag not in ("true", "false"):
             return error(400, "INVALID_PARAMETER", "active_only must be true or false.", field="active_only")
         if flag == "true":
-            now = db_time(datetime.now())
+            current = db_time(now())
             sql += " AND status = 'CONFIRMED' AND start_time <= ? AND end_time > ?"
-            params.extend([now, now])
+            params.extend([current, current])
     sql += " ORDER BY created_at DESC"
     db = get_db()
     return jsonify([reservation_json(db, row) for row in db.execute(sql, params).fetchall()])
@@ -409,7 +411,8 @@ def create_reservation():
     day = parse_date(body.get("date"))
     hour = body.get("start_hour")
 
-    if not isinstance(user_id, str) or not user_id or not isinstance(space_id, int) or isinstance(space_id, bool) or day is None:
+    valid_space = isinstance(space_id, int) and not isinstance(space_id, bool)
+    if not isinstance(user_id, str) or not user_id or not valid_space or day is None:
         return error(400, "INVALID_REQUEST", "Check the reservation details and try again.")
     if hour not in START_HOURS:
         return error(400, "INVALID_TIME_BLOCK", "Choose one of the available time blocks.")
@@ -417,7 +420,7 @@ def create_reservation():
         return error(400, "INVALID_REQUEST", "Check the reservation details and try again.")
 
     start, end = block_times(day, hour)
-    if start <= datetime.now():
+    if start <= now():
         return error(400, "BLOCK_STARTED", "Choose a time block that has not started yet.")
 
     db = get_db()
@@ -466,7 +469,7 @@ def create_reservation():
         cursor = db.execute(
             """INSERT INTO Reservations (user_name, space_id, start_time, end_time, status, created_at)
                VALUES (?, ?, ?, ?, 'CONFIRMED', ?)""",
-            (user_id, space_id, db_time(start), db_time(end), db_time(datetime.now())),
+            (user_id, space_id, db_time(start), db_time(end), db_time(now())),
         )
         reservation_id = cursor.lastrowid
         db.executemany(
@@ -498,7 +501,7 @@ def cancel_reservation(reservation_id):
     if row is None:
         return error(404, "RESERVATION_NOT_FOUND", "That reservation could not be found.")
     if row["status"] != "CANCELLED":
-        if datetime.fromisoformat(row["end_time"]) <= datetime.now():
+        if datetime.fromisoformat(row["end_time"]) <= now():
             return error(409, "BOOKING_ENDED", "This reservation has already ended.")
         db.execute("UPDATE Reservations SET status = 'CANCELLED' WHERE reservation_id = ?", (reservation_id,))
         row = db.execute("SELECT * FROM Reservations WHERE reservation_id = ?", (reservation_id,)).fetchone()

@@ -26,6 +26,7 @@ cd "$APP_DIR"
 python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -e .
 
 # Build esports.db in the repo root and load the demo data.
 .venv/bin/python scripts/init_db.py -y

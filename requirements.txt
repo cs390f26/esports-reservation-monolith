@@ -1,2 +1,6 @@
 flask
 gunicorn
+pytest
+pytest-cov
+ruff
+setuptools

@@ -22,7 +22,7 @@ The scripts default to Learner Lab settings: region `us-east-1`, key pair `vocke
 deploy/deploy.sh
 ```
 
-It creates the security groups if they are missing, launches both instances, and polls `/health` through the proxy until the site answers (usually 2–5 minutes). It ends by printing the URL:
+It first runs `deploy/make_security_groups.sh` to create the `esports-proxy` and `esports-flask` security groups (groups that already exist are left alone), so you don't need to run that script yourself. It then launches both instances and polls `/health` through the proxy until the site answers (usually 2–5 minutes). It ends by printing the URL:
 
 ```text
 site is up: http://<proxy-public-ip>/
@@ -57,8 +57,9 @@ Release any Elastic IP you allocated; it is billed while allocated.
 
 ## Launching from the console instead
 
-1. Launch the Flask instance first: Amazon Linux 2023, security group `esports-flask`, tags `Name=esports-flask` and `esports-role=flask`, user data = `deploy/userdata-flask.sh`.
-2. Launch the proxy: Amazon Linux 2023, security group `esports-proxy`, tag `Name=esports-proxy`, **IAM instance profile `LabInstanceProfile`**, user data = `deploy/userdata-nginx.sh`.
+1. Create the security groups first, either by running `deploy/make_security_groups.sh` or by creating them in the console with the inbound rules in the table at the top of this page.
+2. Launch the Flask instance before the proxy: Amazon Linux 2023, security group `esports-flask`, tags `Name=esports-flask` and `esports-role=flask`, user data = `deploy/userdata-flask.sh`.
+3. Launch the proxy: Amazon Linux 2023, security group `esports-proxy`, tag `Name=esports-proxy`, **IAM instance profile `LabInstanceProfile`**, user data = `deploy/userdata-nginx.sh`.
 
 ## Checking an instance
 

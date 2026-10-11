@@ -7,10 +7,10 @@ Prompts for confirmation unless -y is passed.
 import argparse
 import sys
 
-from dbfile import DATABASE, TABLES, connect, has_tables
+from esports.database import RESERVATION_TABLES, TABLES, clear, connect, database_path, has_tables
 
 
-def main() -> None:
+def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("-y", "--yes", action="store_true", help="Delete without prompting.")
     parser.add_argument(
@@ -18,26 +18,24 @@ def main() -> None:
         action="store_true",
         help="Delete only reservations; keep spaces, computers, and equipment.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     db = connect()
     if not has_tables(db):
-        print(f"{DATABASE} has no tables. Run scripts/init_db.py first.", file=sys.stderr)
+        print(f"{database_path()} has no tables. Run scripts/init_db.py first.", file=sys.stderr)
         sys.exit(1)
 
-    tables = TABLES[:2] if args.reservations else TABLES
+    tables = RESERVATION_TABLES if args.reservations else TABLES
     if not args.yes:
-        answer = input(f"Delete all rows from {', '.join(tables)} in {DATABASE}? [y/N] ")
+        answer = input(f"Delete all rows from {', '.join(tables)} in {database_path()}? [y/N] ")
         if answer.strip().lower() not in ("y", "yes"):
             print("Cancelled.")
             sys.exit(1)
 
-    for table in tables:
-        deleted = db.execute(f"DELETE FROM {table}").rowcount
+    for table, deleted in clear(db, args.reservations).items():
         print(f"  {table}: deleted {deleted}")
-    db.commit()
     db.close()
-    print(f"Cleared {DATABASE}")
+    print(f"Cleared {database_path()}")
 
 
 if __name__ == "__main__":

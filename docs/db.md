@@ -72,6 +72,6 @@ Join table associating a reservation with the equipment items checked out for it
 | `reservation_id` | `INTEGER`  | Composite key; linked to `Reservations.reservation_id` | Reservation the equipment is assigned to.   |
 | `equipment_id`   | `INTEGER`  | Composite key; linked to `Equipment.equipment_id`      | Equipment item assigned to the reservation. |
 
-[schema.sql](../db/schema.sql) implements these tables. It sets the nullability and allowed values used by [openapi.yaml](../openapi.yaml) and adds a unique index that allows one confirmed reservation per space per `start_time`.
+[schema.sql](../src/esports/sql/schema.sql) implements these tables. It sets the nullability and allowed values used by [openapi.yaml](../openapi.yaml) and adds a unique index that allows one confirmed reservation per space per `start_time`.
 
 For JSON payloads, represent timestamps using ISO 8601, such as `2026-09-23T14:00:00Z`. The diagram does not specify database timezone handling or a default for `created_at`.

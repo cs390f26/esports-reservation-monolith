@@ -1,29 +1,29 @@
-"""Create (or recreate) the empty tables from db/schema.sql.
+"""Create (or recreate) the empty tables from the schema.
 
-schema.sql drops every table first, so this wipes existing data. Prompts for
+The schema drops every table first, so this wipes existing data. Prompts for
 confirmation when the database already holds rows, unless -y is passed.
 """
 
 import argparse
 import sys
 
-from dbfile import DATABASE, SCHEMA, connect, has_tables, row_count
+from esports.database import connect, create_tables, database_path, has_tables, row_count
 
 
-def main() -> None:
+def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("-y", "--yes", action="store_true", help="Recreate without prompting.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     db = connect()
     if not args.yes and has_tables(db) and row_count(db):
-        answer = input(f"{DATABASE} has data. Drop and recreate every table? [y/N] ")
+        answer = input(f"{database_path()} has data. Drop and recreate every table? [y/N] ")
         if answer.strip().lower() not in ("y", "yes"):
             print("Cancelled.")
             sys.exit(1)
-    db.executescript(SCHEMA.read_text(encoding="utf-8"))
+    create_tables(db)
     db.close()
-    print(f"Created tables in {DATABASE}")
+    print(f"Created tables in {database_path()}")
 
 
 if __name__ == "__main__":

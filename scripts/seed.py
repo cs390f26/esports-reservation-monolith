@@ -1,4 +1,4 @@
-"""Load db/sampledata.sql into the database.
+"""Load the demo data into the database.
 
 Creates the tables first if they are missing. Refuses to run when the tables
 already hold rows; pass --reset to clear them and reseed.
@@ -10,10 +10,20 @@ current (or next) time block.
 import argparse
 import sys
 
-from dbfile import DATABASE, DATASETS, SAMPLE_DATA, SCHEMA, TABLES, connect, has_tables, row_count
+from esports.database import (
+    DATASETS,
+    clear,
+    connect,
+    create_tables,
+    database_path,
+    has_tables,
+    row_count,
+    seed,
+    table_counts,
+)
 
 
-def main() -> None:
+def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--reset", action="store_true", help="Delete existing rows before seeding.")
     parser.add_argument(
@@ -22,32 +32,27 @@ def main() -> None:
         default="default",
         help="Scenario to load on top of the demo data.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     db = connect()
     if not has_tables(db):
-        db.executescript(SCHEMA.read_text(encoding="utf-8"))
-        print(f"Created tables in {DATABASE}")
+        create_tables(db)
+        print(f"Created tables in {database_path()}")
     elif row_count(db):
         if not args.reset:
             print(
-                f"{DATABASE} already has data. Run with --reset to replace it, "
-                "or run scripts/clear.py first.",
+                f"{database_path()} already has data. Run with --reset to replace it, or run scripts/clear.py first.",
                 file=sys.stderr,
             )
             sys.exit(1)
-        for table in TABLES:
-            db.execute(f"DELETE FROM {table}")
+        clear(db)
         print("Cleared existing rows")
 
-    db.executescript(SAMPLE_DATA.read_text(encoding="utf-8"))
-    if args.dataset != "default":
-        db.executescript(DATASETS[args.dataset].read_text(encoding="utf-8"))
-    for table in reversed(TABLES):
-        count = db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    seed(db, args.dataset)
+    for table, count in table_counts(db).items():
         print(f"  {table}: {count}")
     db.close()
-    print(f"Seeded {DATABASE} ({args.dataset})")
+    print(f"Seeded {database_path()} ({args.dataset})")
 
 
 if __name__ == "__main__":

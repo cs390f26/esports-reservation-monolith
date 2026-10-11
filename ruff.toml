@@ -1,0 +1,10 @@
+line-length = 120
+target-version = "py39"
+
+[lint]
+# pycodestyle errors and warnings, pyflakes, import sorting, pyupgrade, bugbear.
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[lint.isort]
+# conftest.py holds shared test constants that tests import directly.
+known-first-party = ["esports", "conftest"]
