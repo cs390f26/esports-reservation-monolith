@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Space details · Esports Reservation System</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="details">
+    <header>
+      <div class="header">
+        <a class="brand" href="01-overview.html">Esports Reservation System</a>
+        <nav aria-label="Main navigation">
+          <a href="01-overview.html" aria-current="page">Overview</a
+          ><a href="04-settings.html">Settings</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <a class="link" href="01-overview.html">← All stations</a>
+      <p id="load-error" class="error" role="alert" hidden></p>
+      <div class="title-row layout-1">
+        <div>
+          <div class="eyebrow">Space details</div>
+          <h1 id="desk-title">Station</h1>
+          <p id="space-description">Explore the setup, then reserve a time block.</p>
+          <p id="inactive-note" class="help" hidden>
+            This station is inactive and cannot be booked.
+          </p>
+        </div>
+        <a class="button primary" id="reserve-desk" href="02-reservation.html"
+          >Reserve this station</a
+        >
+      </div>
+      <section class="panel">
+        <div class="monitor layout-2"></div>
+        <h2>Gaming station</h2>
+        <p>Built for focused sessions and competitive play.</p>
+        <dl class="specs">
+          <div>
+            <dt>Hostname</dt>
+            <dd id="hostname">—</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd id="computer-status">—</dd>
+          </div>
+          <div>
+            <dt>Specs</dt>
+            <dd id="specs">—</dd>
+          </div>
+        </dl>
+        <div class="divider">
+          <h3>Need extra gear?</h3>
+          <small>Controllers and headsets can be added when booking.</small>
+        </div>
+      </section>
+      <noscript
+        ><p>
+          Enable JavaScript to display the stations and use the booking flow.
+        </p></noscript
+      >
+    </main>
+    <footer>
+      <span>Esports Reservation System</span
+      ><span>Connected to the lounge database</span>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>

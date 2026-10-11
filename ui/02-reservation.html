@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Make a reservation · Esports Reservation System</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="reservation">
+    <header>
+      <div class="header">
+        <a class="brand" href="01-overview.html">Esports Reservation System</a>
+        <nav aria-label="Main navigation">
+          <a href="01-overview.html">Overview</a
+          ><a href="04-settings.html">Settings</a>
+        </nav>
+      </div>
+    </header>
+    <main class="narrow">
+      <div class="eyebrow">Book your station</div>
+      <h1>Make a reservation</h1>
+      <p>A space to play, with everything you need.</p>
+      <p id="load-error" class="error" role="alert" hidden></p>
+      <div class="step">
+        <b>01 Select your session</b> &nbsp; / &nbsp; 02 Review & confirm
+      </div>
+      <form class="panel" id="booking">
+        <h2>Your session</h2>
+        <div class="form-grid">
+          <label class="full"
+            >Station<select name="desk" required></select></label
+          ><label class="full"
+            >Date<input name="date" type="date" required /></label
+          ><label class="full"
+            >Time block<select name="block" required></select></label
+          ><label class="full"
+            >Name<input
+              name="name"
+              type="text"
+              required
+              placeholder="e.g. Isaac Nunez"
+          /></label>
+        </div>
+        <p class="help">
+          Sessions are 2-hour blocks from 10:00 to 22:00, in your device’s
+          local timezone.
+        </p>
+        <div class="divider">
+          <h2>Add equipment <small>· optional</small></h2>
+          <div id="equipment-list"></div>
+        </div>
+        <p id="feedback" class="error" role="alert"></p>
+        <button class="primary" type="submit">Review reservation →</button>
+      </form>
+      <dialog id="confirm" aria-labelledby="confirm-title">
+        <div class="eyebrow">One last check</div>
+        <h2 id="confirm-title">Confirm your reservation?</h2>
+        <div id="summary"></div>
+        <p>Your station and equipment will be reserved for this session.</p>
+        <div class="row">
+          <button type="button" data-close>Keep editing</button
+          ><button class="primary" type="button" id="confirm-booking">
+            Confirm booking
+          </button>
+        </div>
+      </dialog>
+      <noscript
+        ><p>
+          Enable JavaScript to display the stations and use the booking flow.
+        </p></noscript
+      >
+    </main>
+    <footer>
+      <span>Esports Reservation System</span
+      ><span>Connected to the lounge database</span>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>

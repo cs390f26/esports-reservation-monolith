@@ -1,0 +1,500 @@
+openapi: 3.0.3
+info:
+  title: eSports Reservation System API
+  version: 1.0.0
+  description:
+    API for spaces, computers, equipment, and reservations. Demo version with no sign-in. Uses
+    integer IDs and ISO 8601 timestamps. Reservation-equipment links extend the original database schema.
+    Reservations use fixed 2-hour time blocks from 10:00 to 22:00 in the lounge's local time. A block is identified
+    by a date and a start hour (10, 12, 14, 16, 18, or 20).
+paths:
+  /inventory:
+    get:
+      summary: Get the inventory
+      description: Returns all spaces, computers, and equipment in one response. Used by every page.
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inventory" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+  /spaces/{spaceId}:
+    parameters:
+      - name: spaceId
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      summary: Update space
+      description: Updates supplied fields only. Existing reservations are preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SpaceUpdate" }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Space" }
+        "400": { $ref: "#/components/responses/InvalidUpdate" }
+        "404": { $ref: "#/components/responses/SpaceNotFound" }
+  /computers/{computerId}:
+    parameters:
+      - name: computerId
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      summary: Update computer
+      description: Updates supplied fields only. Existing reservations are preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComputerUpdate" }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Computer" }
+        "400": { $ref: "#/components/responses/InvalidUpdate" }
+        "404": { $ref: "#/components/responses/ComputerNotFound" }
+  /equipment/{equipmentId}:
+    parameters:
+      - name: equipmentId
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    patch:
+      summary: Update equipment
+      description: Updates supplied fields only. Existing reservations are preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EquipmentUpdate" }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Equipment" }
+        "400": { $ref: "#/components/responses/InvalidUpdate" }
+        "404": { $ref: "#/components/responses/EquipmentNotFound" }
+  /availability:
+    get:
+      summary: Get time blocks and availability
+      description:
+        Returns time blocks with the spaces and equipment free in each. A snapshot, not a hold; booking rechecks
+        availability. With no parameters, returns the block in progress now, or the next block (in_progress false)
+        outside lounge hours; used by the landing page. With date only, returns that date's six blocks in start
+        order. With date and start_hour, returns that one block. start_hour without date returns 400.
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: start_hour
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/StartHour" }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                {
+                  type: array,
+                  items: { $ref: "#/components/schemas/BlockAvailability" },
+                }
+        "400": { $ref: "#/components/responses/InvalidAvailabilityQuery" }
+  /reservations:
+    get:
+      summary: List reservations
+      description: Newest first. Filters are optional; active_only returns confirmed sessions currently in progress.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema: { type: string }
+        - name: space_id
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: active_only
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                {
+                  type: array,
+                  items: { $ref: "#/components/schemas/Reservation" },
+                }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+    post:
+      summary: Create a reservation
+      description:
+        Submit after user confirmation. The request names a time block (date + start_hour); the server derives
+        start_time and end_time. The block must not have started. The space must be active and
+        all resources free for that block. Reject a second confirmed booking of the same resource in the same block;
+        back-to-back blocks are allowed. Check and book resources atomically. Return 400 for invalid input, 404 for missing resources, 409 for unavailable resources, or 500 if the booking
+        could not be saved. A 500 never leaves a partial booking, so the client can safely retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateReservation" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reservation" }
+        "400": { $ref: "#/components/responses/InvalidReservation" }
+        "404": { $ref: "#/components/responses/ReservationResourceNotFound" }
+        "409": { $ref: "#/components/responses/ReservationConflict" }
+        "500": { $ref: "#/components/responses/ReservationFailed" }
+components:
+  responses:
+    InvalidRequest:
+      description: The request is malformed or includes an unknown query parameter or a value of the wrong type.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            unknownParameter:
+              value:
+                code: UNKNOWN_PARAMETER
+                message: "Unknown query parameter: sort."
+                field: sort
+            invalidParameter:
+              value:
+                code: INVALID_PARAMETER
+                message: "space_id must be a positive integer."
+                field: space_id
+    InvalidUpdate:
+      description: The update body is empty, names a field that cannot be changed, or has a value of the wrong type or outside the allowed values.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            emptyUpdate:
+              value:
+                code: EMPTY_UPDATE
+                message: "Include at least one field to update."
+            unknownField:
+              value:
+                code: UNKNOWN_FIELD
+                message: "Field cannot be updated: space_id."
+                field: space_id
+            invalidStatus:
+              value:
+                code: INVALID_FIELD
+                message: "status must be one of AVAILABLE, IN_USE, MAINTENANCE, OFFLINE."
+                field: status
+    SpaceNotFound:
+      description: No space has the given spaceId.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            spaceNotFound:
+              value:
+                code: SPACE_NOT_FOUND
+                message: "Space 42 does not exist."
+                resource_ids: [42]
+    ComputerNotFound:
+      description: No computer has the given computerId.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            computerNotFound:
+              value:
+                code: COMPUTER_NOT_FOUND
+                message: "Computer 42 does not exist."
+                resource_ids: [42]
+    EquipmentNotFound:
+      description: No equipment item has the given equipmentId.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            equipmentNotFound:
+              value:
+                code: EQUIPMENT_NOT_FOUND
+                message: "Equipment 42 does not exist."
+                resource_ids: [42]
+    InvalidAvailabilityQuery:
+      description: The date is not a valid calendar date, start_hour is not one of the six block start hours, or start_hour was sent without date.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            invalidDate:
+              value:
+                code: INVALID_DATE
+                message: "date must be a calendar date in YYYY-MM-DD format."
+                field: date
+            invalidTimeBlock:
+              value:
+                code: INVALID_TIME_BLOCK
+                message: "Choose one of the available time blocks."
+                field: start_hour
+            startHourWithoutDate:
+              value:
+                code: MISSING_DATE
+                message: "Include date when filtering by start_hour."
+                field: date
+    InvalidReservation:
+      description: The reservation request is invalid. A required field is missing or malformed, the time is not one of the defined blocks, or the block has already started.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            missingField:
+              value:
+                code: MISSING_FIELD
+                message: "space_id is required."
+                field: space_id
+            invalidTimeBlock:
+              value:
+                code: INVALID_TIME_BLOCK
+                message: "Choose one of the available time blocks."
+                field: start_hour
+            blockStarted:
+              value:
+                code: BLOCK_STARTED
+                message: "Choose a time block that has not started yet."
+                field: start_hour
+            duplicateEquipment:
+              value:
+                code: DUPLICATE_EQUIPMENT
+                message: "Each equipment item can only be selected once."
+                field: equipment_ids
+    ReservationResourceNotFound:
+      description: The space or an equipment item named in the request does not exist. resource_ids lists the missing IDs.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            spaceNotFound:
+              value:
+                code: SPACE_NOT_FOUND
+                message: "The selected space does not exist."
+                resource_ids: [42]
+            equipmentNotFound:
+              value:
+                code: EQUIPMENT_NOT_FOUND
+                message: "One or more selected equipment items do not exist."
+                resource_ids: [17, 18]
+    ReservationConflict:
+      description: The space or equipment cannot be booked for the block. No reservation is created. resource_ids lists the unavailable IDs so the client can keep the other selections.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            spaceBooked:
+              value:
+                code: SPACE_BOOKED
+                message: "This space is already booked during your selected time. Choose another space or time."
+                resource_ids: [3]
+            spaceInactive:
+              value:
+                code: SPACE_INACTIVE
+                message: "This space is not open for reservations. Choose another space."
+                resource_ids: [3]
+            equipmentUnavailable:
+              value:
+                code: EQUIPMENT_UNAVAILABLE
+                message: "This equipment is unavailable during your selected time."
+                resource_ids: [7]
+            availabilityChanged:
+              value:
+                code: AVAILABILITY_CHANGED
+                message: "Availability changed. Please review your space and equipment selections."
+                resource_ids: [3, 7]
+    ReservationFailed:
+      description: The server could not save the reservation. No booking was created, so the request can be retried.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          examples:
+            saveFailed:
+              value:
+                code: RESERVATION_FAILED
+                message: "We couldn't complete your reservation. Please try again."
+  schemas:
+    Space:
+      type: object
+      required: [space_id, space_name, description, is_active]
+      additionalProperties: false
+      properties:
+        space_id: { type: integer, minimum: 1 }
+        space_name: { type: string }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+    Computer:
+      type: object
+      required: [computer_id, space_id, hostname, specs, status]
+      additionalProperties: false
+      properties:
+        computer_id: { type: integer, minimum: 1 }
+        space_id: { type: integer, minimum: 1 }
+        hostname: { type: string }
+        specs: { type: string, nullable: true }
+        status:
+          { type: string, enum: [AVAILABLE, IN_USE, MAINTENANCE, OFFLINE] }
+    Equipment:
+      type: object
+      required: [equipment_id, item_name, category, serial_number, status]
+      additionalProperties: false
+      properties:
+        equipment_id: { type: integer, minimum: 1 }
+        item_name: { type: string }
+        category: { type: string, enum: [HEADSET, CONTROLLER] }
+        serial_number: { type: string, nullable: true }
+        status:
+          { type: string, enum: [AVAILABLE, IN_USE, MAINTENANCE, OFFLINE] }
+    SpaceUpdate:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        space_name: { type: string }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+    ComputerUpdate:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        hostname: { type: string }
+        specs: { type: string, nullable: true }
+        status:
+          { type: string, enum: [AVAILABLE, IN_USE, MAINTENANCE, OFFLINE] }
+    EquipmentUpdate:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        item_name: { type: string }
+        category: { type: string, enum: [HEADSET, CONTROLLER] }
+        serial_number: { type: string, nullable: true }
+        status:
+          { type: string, enum: [AVAILABLE, IN_USE, MAINTENANCE, OFFLINE] }
+    StartHour:
+      type: integer
+      enum: [10, 12, 14, 16, 18, 20]
+      description: Start hour of a 2-hour block, in the lounge's local time.
+    TimeBlock:
+      type: object
+      required: [date, start_hour, end_hour, start_time, end_time, in_progress]
+      properties:
+        date: { type: string, format: date }
+        start_hour: { $ref: "#/components/schemas/StartHour" }
+        end_hour: { type: integer, enum: [12, 14, 16, 18, 20, 22] }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        in_progress:
+          type: boolean
+          description: True for the block in progress now. False for other blocks, including the next block when the lounge is closed.
+    CreateReservation:
+      type: object
+      additionalProperties: false
+      required: [user_id, space_id, date, start_hour]
+      properties:
+        user_id: { type: string, minLength: 1 }
+        space_id: { type: integer, minimum: 1 }
+        equipment_ids:
+          {
+            type: array,
+            items: { type: integer, minimum: 1 },
+            uniqueItems: true,
+            default: [],
+          }
+        date: { type: string, format: date }
+        start_hour: { $ref: "#/components/schemas/StartHour" }
+    Reservation:
+      type: object
+      required:
+        [
+          reservation_id,
+          user_id,
+          space_id,
+          equipment_ids,
+          start_time,
+          end_time,
+          status,
+          created_at,
+        ]
+      properties:
+        reservation_id: { type: integer }
+        user_id: { type: string, minLength: 1 }
+        space_id: { type: integer, minimum: 1 }
+        equipment_ids:
+          {
+            type: array,
+            items: { type: integer, minimum: 1 },
+            uniqueItems: true,
+            default: [],
+          }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        status: { type: string, enum: [CONFIRMED, CANCELLED, COMPLETED] }
+        created_at: { type: string, format: date-time }
+    BlockAvailability:
+      allOf:
+        - $ref: "#/components/schemas/TimeBlock"
+        - type: object
+          required: [space_ids, equipment_ids]
+          properties:
+            space_ids:
+              type: array
+              items: { type: integer }
+              description: Active spaces with no confirmed booking in this block.
+            equipment_ids:
+              type: array
+              items: { type: integer }
+              description: Equipment with no confirmed booking in this block.
+    Inventory:
+      type: object
+      required: [spaces, computers, equipment]
+      additionalProperties: false
+      properties:
+        spaces: { type: array, items: { $ref: "#/components/schemas/Space" } }
+        computers:
+          { type: array, items: { $ref: "#/components/schemas/Computer" } }
+        equipment:
+          { type: array, items: { $ref: "#/components/schemas/Equipment" } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable, machine-readable error code. Clients should branch on this, not on message.
+          example: SPACE_BOOKED
+        message:
+          type: string
+          description: Human-readable explanation, safe to show to the user.
+          example: This space is already booked during your selected time. Choose another space or time.
+        field:
+          type: string
+          description: For validation errors, the request field or query parameter that caused the error.
+          example: start_hour
+        resource_ids:
+          type: array
+          items: { type: integer }
+          description: For 404 and 409 errors, the IDs of the missing or unavailable spaces, computers, or equipment.
+          example: [3]

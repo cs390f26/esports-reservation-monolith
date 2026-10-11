@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Overview · eSports Reservation System</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="overview">
+    <header>
+      <div class="header">
+        <a class="brand" href="01-overview.html">eSports Reservation System</a>
+        <nav aria-label="Main navigation">
+          <a href="01-overview.html" aria-current="page">Overview</a
+          ><a href="04-settings.html">Settings</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <div class="title-row">
+        <div>
+          <div class="eyebrow">Your next session starts here</div>
+          <h1>Find your station.</h1>
+          <p>Choose your setup and book a 2-hour block.</p>
+        </div>
+        <a class="button primary" href="02-reservation.html"
+          >+ Make a reservation</a
+        >
+      </div>
+      <p id="saved-note" class="notice" hidden>Your reservation was saved.</p>
+      <p id="load-error" class="error" role="alert" hidden></p>
+      <section class="panel">
+        <div class="row">
+          <h2>Arena stations</h2>
+          <span class="badge" id="station-count">Stations</span>
+        </div>
+        <p>
+          <strong id="block-kind">Current time block</strong> ·
+          <span id="date-label"></span> · <span id="block-label"></span
+          ><span id="lounge-note"></span>
+        </p>
+        <div class="grid" id="stations"></div>
+        <p class="help">
+          Availability is for the time block above. Select a station for its
+          specs.
+        </p>
+      </section>
+    </main>
+    <footer>
+      <span>Esports Reservation System</span
+      ><span>Connected to the lounge database</span>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>
