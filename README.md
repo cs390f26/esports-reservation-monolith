@@ -61,28 +61,34 @@ See [docs/deploy.md](docs/deploy.md) for details, reseeding a live server, and t
 
 ## What's in the repo
 
-| Path | Purpose |
-| --- | --- |
-| `src/esports/app.py` | Flask server: every endpoint in `openapi.yaml`, plus the UI as static files |
-| `src/esports/database.py` | Create, seed, and clear the SQLite database (used by the scripts and tests) |
-| `src/esports/static/` | The four pages (overview, reservation, space details, settings), `app.js`, and `styles.css` |
-| `src/esports/sql/schema.sql` | Creates the five tables |
-| `src/esports/sql/sampledata.sql` | Demo data, dated relative to today |
-| `src/esports/sql/overwatch.sql` | Overwatch match scenario: every desk booked for the current block |
-| `tests/` | pytest unit tests for the API, the database helpers, and the scripts |
-| `scripts/init_db.py` | Drop and recreate empty tables |
-| `scripts/seed.py` | Load the demo data (`--reset` to replace existing rows, `--dataset overwatch` for the match scenario) |
-| `scripts/clear.py` | Delete every row, or only bookings with `--reservations` |
-| `setup.py`, `requirements.txt` | Package definition and the libraries to install (app, server, and dev tools) |
-| `pytest.ini`, `ruff.toml` | Test settings (90% coverage minimum) and lint/format settings |
-| `.github/workflows/ci.yml` | Runs ruff and pytest on every push to `main` and every pull request |
-| `deploy/esports.service` | systemd unit that runs gunicorn on the Flask instance |
-| `deploy/nginx.conf` | Proxy config; the nginx user data fills in the Flask instance's IP |
-| `deploy/userdata-flask.sh` | EC2 user data for the Flask instance |
-| `deploy/userdata-nginx.sh` | EC2 user data for the nginx proxy instance |
-| `deploy/deploy.sh` | Launch everything with the AWS CLI |
-| `deploy/teardown.sh` | Terminate the instances |
-| `deploy/make_security_groups.sh`, `deploy/delete_security_groups.sh` | Create or delete the two security groups |
-| `deploy/remote_db.sh` | Run `seed`, `clear`, or `init_db` on the deployed Flask instance |
-| `openapi.yaml` | The HTTP contract between the browser and the server |
-| `docs/` | [Use cases](docs/use_cases.md), [data model](docs/db.md), [local development](docs/development.md), [deployment](docs/deploy.md) |
+| Path                                                                 | Purpose                                                                                                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `src/esports/app.py`                                                 | Flask server: every endpoint in `openapi.yaml`, plus the UI as static files                                                      |
+| `src/esports/database.py`                                            | Create, seed, and clear the SQLite database (used by the scripts and tests)                                                      |
+| `src/esports/static/`                                                | The four pages (overview, reservation, space details, settings), `app.js`, and `styles.css`                                      |
+| `src/esports/sql/schema.sql`                                         | Creates the five tables                                                                                                          |
+| `src/esports/sql/sampledata.sql`                                     | Demo data, dated relative to today                                                                                               |
+| `src/esports/sql/overwatch.sql`                                      | Overwatch match scenario: every desk booked for the current block                                                                |
+| `tests/`                                                             | pytest unit tests for the API, the database helpers, and the scripts                                                             |
+| `scripts/init_db.py`                                                 | Drop and recreate empty tables                                                                                                   |
+| `scripts/seed.py`                                                    | Load the demo data (`--reset` to replace existing rows, `--dataset overwatch` for the match scenario)                            |
+| `scripts/clear.py`                                                   | Delete every row, or only bookings with `--reservations`                                                                         |
+| `setup.py`, `requirements.txt`                                       | Package definition and the libraries to install (app, server, and dev tools)                                                     |
+| `pytest.ini`, `ruff.toml`                                            | Test settings (90% coverage minimum) and lint/format settings                                                                    |
+| `.github/workflows/ci.yml`                                           | Runs ruff and pytest on every push to `main` and every pull request                                                              |
+| `deploy/esports.service`                                             | systemd unit that runs gunicorn on the Flask instance                                                                            |
+| `deploy/nginx.conf`                                                  | Proxy config; the nginx user data fills in the Flask instance's IP                                                               |
+| `deploy/userdata-flask.sh`                                           | EC2 user data for the Flask instance                                                                                             |
+| `deploy/userdata-nginx.sh`                                           | EC2 user data for the nginx proxy instance                                                                                       |
+| `deploy/deploy.sh`                                                   | Launch everything with the AWS CLI                                                                                               |
+| `deploy/teardown.sh`                                                 | Terminate the instances                                                                                                          |
+| `deploy/make_security_groups.sh`, `deploy/delete_security_groups.sh` | Create or delete the two security groups                                                                                         |
+| `deploy/remote_db.sh`                                                | Run `seed`, `clear`, or `init_db` on the deployed Flask instance                                                                 |
+| `openapi.yaml`                                                       | The HTTP contract between the browser and the server                                                                             |
+| `docs/`                                                              | [Use cases](docs/use_cases.md), [data model](docs/db.md), [local development](docs/development.md), [deployment](docs/deploy.md) |
+
+## Contributors
+
+- Isaac Nunez
+- Mael Tshiyonga
+- Sean Creveling

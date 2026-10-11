@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Same Python as the EC2 instance (python3.12 on Amazon Linux 2023).
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -32,6 +31,5 @@ jobs:
       - name: Check formatting (ruff)
         run: ruff format --check .
 
-      # pytest.ini adds coverage and fails the run below 90%.
       - name: Unit tests (pytest)
         run: pytest
