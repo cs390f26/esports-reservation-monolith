@@ -1,6 +1,8 @@
 # Local Development
 
-Run every command from the repo root. To put the site on AWS, see [deploy.md](deploy.md).
+Run every command from the repo root (the folder that holds `setup.py`). To put the site on AWS, see [deploy.md](deploy.md).
+
+The paths in these commands are relative, and the database is `esports.db` in the current directory unless `ESPORTS_DB` is set. If you seed from one folder and start the server from another, each one uses a different database file.
 
 ## Prerequisites
 
@@ -8,7 +10,16 @@ Run every command from the repo root. To put the site on AWS, see [deploy.md](de
 - Python 3.9 or newer (`python3 --version`)
 - Optional: the `sqlite3` command-line tool for poking at the database
 
-## 1. Create the virtual environment
+## 1. Get the code
+
+```bash
+git clone https://github.com/cs390f26/esports-reservation-monolith.git
+cd esports-reservation-monolith
+```
+
+Every command below runs from this folder.
+
+## 2. Create the virtual environment
 
 ```bash
 python3 -m venv .venv
@@ -21,7 +32,7 @@ pip install -e .
 
 Activate the environment again in each new terminal. When you add a library the app needs, add it to `requirements.txt` (so the EC2 instance gets it) and to `install_requires` in `setup.py`.
 
-## 2. Load the database
+## 3. Load the database
 
 ```bash
 python scripts/seed.py
@@ -40,7 +51,7 @@ This creates `esports.db` in the current directory (from `src/esports/sql/schema
 
 The demo data's reservations are dated relative to today, so reseed on the day of a demo. Every block today has at least one confirmed booking, Station 06 is inactive, and one headset is in maintenance. The Overwatch dataset brings Station 06 back online so all six desks are in the match.
 
-## 3. Run the server
+## 4. Run the server
 
 ```bash
 flask --app esports.app run --debug
@@ -60,7 +71,7 @@ curl -s http://127.0.0.1:5000/inventory
 curl -s "http://127.0.0.1:5000/availability?date=$(date +%F)"
 ```
 
-## 4. Run the tests
+## 5. Run the tests
 
 ```bash
 pytest
@@ -87,7 +98,7 @@ pytest --no-cov -x                             # skip coverage, stop at the firs
 pytest --cov-report=html && open htmlcov/index.html   # line-by-line coverage report
 ```
 
-## 5. Lint and format
+## 6. Lint and format
 
 ```bash
 ruff check .          # lint
@@ -109,5 +120,7 @@ Settings are in `ruff.toml`.
 | `ModuleNotFoundError: No module named 'esports'` | The package is not installed in this environment | `pip install -e .` |
 | `FAIL Required test coverage of 90% not reached` | New code has no tests | Add tests, or run `pytest --cov-report=term-missing` to see the uncovered lines |
 | "The lounge database could not be reached." in the UI, or `no such table` | The database was never created | `python scripts/seed.py` |
+| `no such table` or empty data right after seeding | The server and `seed.py` ran from different folders, so each used its own `esports.db` | Run both from the repo root, or set `ESPORTS_DB` to an absolute path |
+| `No such file or directory: 'requirements.txt'` or `scripts/seed.py` | The command ran outside the repo root | `cd` to the folder that holds `setup.py` |
 | No reservations show as booked | The demo data was seeded on an earlier day | `python scripts/seed.py --reset` |
 | `Address already in use` | Port 5000 is taken (on macOS, often AirPlay Receiver) | `flask --app esports.app run --port 5001` |
