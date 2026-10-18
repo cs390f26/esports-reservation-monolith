@@ -42,4 +42,4 @@ APP_DIR=/home/ec2-user/esports-reservation-monolith
 ssh -t "${SSH_OPTS[@]}" \
   -o ProxyCommand="ssh ${SSH_OPTS[*]} -W %h:%p ec2-user@$PROXY_IP" \
   "ec2-user@$FLASK_IP" \
-  "cd $APP_DIR && .venv/bin/python scripts/$SCRIPT.py $*"
+  "cd $APP_DIR && set -a && . /etc/esports.env && set +a && .venv/bin/python scripts/$SCRIPT.py $*"

@@ -72,6 +72,6 @@ Join table associating a reservation with the equipment items checked out for it
 | `reservation_id` | `INTEGER`  | Composite key; linked to `Reservations.reservation_id` | Reservation the equipment is assigned to.   |
 | `equipment_id`   | `INTEGER`  | Composite key; linked to `Equipment.equipment_id`      | Equipment item assigned to the reservation. |
 
-[schema.sql](../src/esports/sql/schema.sql) implements these tables. It sets the nullability and allowed values used by [openapi.yaml](../openapi.yaml) and adds a unique index that allows one confirmed reservation per space per `start_time`.
+[schema.sql](../src/esports/sql/schema.sql) implements these tables on MySQL. It sets the nullability and allowed values used by [openapi.yaml](../openapi.yaml). One confirmed reservation per space per `start_time` is enforced with a generated `confirmed_slot` column and a unique key, because MySQL cannot put a unique index on only the confirmed rows. Cancelled and completed rows store `NULL` in that column, and a unique key allows multiple `NULL`s.
 
-For JSON payloads, represent timestamps using ISO 8601, such as `2026-09-23T14:00:00Z`. The diagram does not specify database timezone handling or a default for `created_at`.
+For JSON payloads, represent timestamps using ISO 8601, such as `2026-09-23T14:00:00Z`. The database stores those instants as `DATETIME` values in the lounge's local time. Each connection sets its session time zone from the host clock.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Delete the two esports security groups. Run teardown.sh first.
+# Delete the esports security groups. Run teardown.sh first.
 # esports-flask references esports-proxy as a source, so it goes first.
 
 set -euo pipefail

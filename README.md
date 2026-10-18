@@ -1,9 +1,9 @@
 # Esports Reservation System
 
-A Flask app for booking esports lounge stations in fixed 2-hour blocks (10:00–22:00), with optional headsets and controllers. The prototype has no sign-in. On AWS it runs on two EC2 instances: an nginx reverse proxy in front of one Flask/gunicorn server that keeps its data in SQLite.
+A Flask app for booking esports lounge stations in fixed 2-hour blocks (10:00–22:00), with optional headsets and controllers. The prototype has no sign-in. On AWS it runs on two EC2 instances: an nginx reverse proxy in front of one Flask/gunicorn server that also runs MySQL locally.
 
 ```text
-browser ──HTTP :80──▶ esports-proxy (nginx) ──:5000──▶ esports-flask (gunicorn + Flask + SQLite)
+browser ──HTTP :80──▶ esports-proxy (nginx) ──:5000──▶ esports-flask (gunicorn + Flask + MySQL)
 ```
 
 ## Quick start (local)
@@ -13,7 +13,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .                # installs the esports package
-python scripts/seed.py          # creates esports.db and loads the demo data
+docker compose up -d            # MySQL 8 on localhost:3306
+python scripts/seed.py          # creates the tables and loads the demo data
 flask --app esports.app run     # http://127.0.0.1:5000/
 pytest                          # unit tests with coverage
 ```
@@ -64,7 +65,7 @@ See [docs/deploy.md](docs/deploy.md) for details, reseeding a live server, and t
 | Path                                                                 | Purpose                                                                                                                          |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `src/esports/app.py`                                                 | Flask server: every endpoint in `openapi.yaml`, plus the UI as static files                                                      |
-| `src/esports/database.py`                                            | Create, seed, and clear the SQLite database (used by the scripts and tests)                                                      |
+| `src/esports/database.py`                                            | Create, seed, and clear the MySQL database (used by the scripts and tests)                                                       |
 | `src/esports/static/`                                                | The four pages (overview, reservation, space details, settings), `app.js`, and `styles.css`                                      |
 | `src/esports/sql/schema.sql`                                         | Creates the five tables                                                                                                          |
 | `src/esports/sql/sampledata.sql`                                     | Demo data, dated relative to today                                                                                               |
@@ -78,7 +79,7 @@ See [docs/deploy.md](docs/deploy.md) for details, reseeding a live server, and t
 | `.github/workflows/ci.yml`                                           | Runs ruff and pytest on every push to `main` and every pull request                                                              |
 | `deploy/esports.service`                                             | systemd unit that runs gunicorn on the Flask instance                                                                            |
 | `deploy/nginx.conf`                                                  | Proxy config; the nginx user data fills in the Flask instance's IP                                                               |
-| `deploy/userdata-flask.sh`                                           | EC2 user data for the Flask instance                                                                                             |
+| `deploy/userdata-flask.sh`                                           | EC2 user data for the Flask + MySQL instance                                                                                     |
 | `deploy/userdata-nginx.sh`                                           | EC2 user data for the nginx proxy instance                                                                                       |
 | `deploy/deploy.sh`                                                   | Launch everything with the AWS CLI                                                                                               |
 | `deploy/teardown.sh`                                                 | Terminate the instances                                                                                                          |

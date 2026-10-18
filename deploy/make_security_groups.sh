@@ -41,7 +41,7 @@ else
   FLASK_ID="$(
     aws ec2 create-security-group \
       --group-name esports-flask \
-      --description "Esports Flask server: SSH and port 5000 from the proxy group only." \
+      --description "Esports Flask + MySQL: SSH and port 5000 from the proxy group only." \
       --query GroupId \
       --output text
   )"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Launch the Flask instance and the nginx proxy with the AWS CLI, then wait
-# for the site to answer. Creates the security groups if they are missing.
+# Launch the Flask/MySQL instance and the nginx proxy with the AWS CLI, then
+# wait for the site to answer. Creates the security groups if they are missing.
 #
 # Defaults match AWS Academy Learner Lab. Override with environment variables:
 #   KEY_NAME=vockey INSTANCE_TYPE=t3.micro INSTANCE_PROFILE=LabInstanceProfile
@@ -29,6 +29,14 @@ fi
 
 "$SCRIPT_DIR/make_security_groups.sh"
 
+# One password for the MySQL root and app users. It stays in the instance
+# user data and /etc/esports.env, not in git.
+DB_PASSWORD="Es$(openssl rand -hex 8)Aa1!"
+FLASK_USERDATA="$(mktemp)"
+cleanup() { rm -f "$FLASK_USERDATA"; }
+trap cleanup EXIT
+sed "s|__DB_PASSWORD__|${DB_PASSWORD}|g" "$SCRIPT_DIR/userdata-flask.sh" >"$FLASK_USERDATA"
+
 AMI="$(
   aws ssm get-parameter \
     --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
@@ -43,7 +51,7 @@ FLASK_ID="$(
     --instance-type "$INSTANCE_TYPE" \
     --key-name "$KEY_NAME" \
     --security-groups esports-flask \
-    --user-data "file://${SCRIPT_DIR}/userdata-flask.sh" \
+    --user-data "file://${FLASK_USERDATA}" \
     --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=esports-flask},{Key=esports-role,Value=flask}]" \
     --query "Instances[0].InstanceId" \
     --output text
@@ -76,9 +84,9 @@ PUBLIC_IP="$(
     --output text
 )"
 
-# User data takes a few minutes (package installs, clone, seeding).
-echo "waiting for http://$PUBLIC_IP/health (usually 2-5 minutes)"
-for _ in $(seq 90); do
+# User data takes a few minutes (MySQL install, clone, seeding).
+echo "waiting for http://$PUBLIC_IP/health (usually 5-10 minutes)"
+for _ in $(seq 120); do
   if curl -fsS --max-time 5 "http://$PUBLIC_IP/health" >/dev/null 2>&1; then
     echo
     echo "site is up: http://$PUBLIC_IP/"
@@ -88,6 +96,6 @@ for _ in $(seq 90); do
   sleep 10
 done
 echo
-echo "site did not answer after 15 minutes: http://$PUBLIC_IP/" >&2
+echo "site did not answer after 20 minutes: http://$PUBLIC_IP/" >&2
 echo "check /var/log/cloud-init-output.log on each instance" >&2
 exit 1

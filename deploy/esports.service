@@ -1,16 +1,18 @@
 [Unit]
 Description=Esports reservation app (gunicorn)
-After=network-online.target
+After=network-online.target mysqld.service
 Wants=network-online.target
+Requires=mysqld.service
 
 [Service]
 Type=simple
 User=ec2-user
 Group=ec2-user
 WorkingDirectory=/home/ec2-user/esports-reservation-monolith
-# One worker keeps SQLite writes on a single process. Port 5000 is open only
-# to the proxy security group; nginx is the public entry point.
-ExecStart=/home/ec2-user/esports-reservation-monolith/.venv/bin/gunicorn --workers 1 --bind 0.0.0.0:5000 esports.app:app
+EnvironmentFile=/etc/esports.env
+# Port 5000 is open only to the proxy security group; nginx is the public entry point.
+# MySQL is on this same instance and listens only on 127.0.0.1.
+ExecStart=/home/ec2-user/esports-reservation-monolith/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5000 esports.app:app
 Restart=on-failure
 RestartSec=5
 
