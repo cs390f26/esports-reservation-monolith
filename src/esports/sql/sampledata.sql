@@ -1,5 +1,5 @@
 -- Demo data for the tables in schema.sql. Run schema.sql first.
--- Reservation times are relative to today in the server's local time, so the
+-- Reservation times are relative to today in the session time zone, so the
 -- demo always shows bookings for today and tomorrow no matter when it is seeded.
 -- Every block today has at least one confirmed booking, so the overview always
 -- shows a reserved station.
@@ -29,15 +29,15 @@ INSERT INTO Equipment (equipment_id, item_name, category, serial_number, status)
   (5, 'HyperX Cloud II Headset #3', 'HEADSET', 'MOCK-HEADSET-003', 'MAINTENANCE');
 
 INSERT INTO Reservations (reservation_id, user_name, space_id, start_time, end_time, status, created_at) VALUES
-  (8801, 'usr_001', 1, datetime(date('now', 'localtime'), '+14 hours'), datetime(date('now', 'localtime'), '+16 hours'), 'CONFIRMED', datetime('now', 'localtime', '-1 day')),
-  (8802, 'usr_002', 2, datetime(date('now', 'localtime'), '+18 hours'), datetime(date('now', 'localtime'), '+20 hours'), 'CONFIRMED', datetime('now', 'localtime', '-1 day', '+2 hours')),
-  (8803, 'usr_003', 4, datetime(date('now', 'localtime'), '+16 hours'), datetime(date('now', 'localtime'), '+18 hours'), 'CONFIRMED', datetime('now', 'localtime', '-20 hours')),
-  (8804, 'usr_001', 3, datetime(date('now', 'localtime', '+1 day'), '+12 hours'), datetime(date('now', 'localtime', '+1 day'), '+14 hours'), 'CONFIRMED', datetime('now', 'localtime', '-3 hours')),
-  (8805, 'usr_004', 6, datetime(date('now', 'localtime', '+1 day'), '+18 hours'), datetime(date('now', 'localtime', '+1 day'), '+20 hours'), 'CONFIRMED', datetime('now', 'localtime', '-2 days')),
-  (8806, 'usr_005', 2, datetime(date('now', 'localtime'), '+10 hours'), datetime(date('now', 'localtime'), '+12 hours'), 'CANCELLED', datetime('now', 'localtime', '-2 days')),
-  (8807, 'usr_006', 5, datetime(date('now', 'localtime'), '+10 hours'), datetime(date('now', 'localtime'), '+12 hours'), 'CONFIRMED', datetime('now', 'localtime', '-1 day', '+4 hours')),
-  (8808, 'usr_006', 5, datetime(date('now', 'localtime'), '+12 hours'), datetime(date('now', 'localtime'), '+14 hours'), 'CONFIRMED', datetime('now', 'localtime', '-1 day', '+4 hours')),
-  (8809, 'usr_007', 3, datetime(date('now', 'localtime'), '+20 hours'), datetime(date('now', 'localtime'), '+22 hours'), 'CONFIRMED', datetime('now', 'localtime', '-5 hours'));
+  (8801, 'usr_001', 1, DATE_ADD(CURDATE(), INTERVAL 14 HOUR), DATE_ADD(CURDATE(), INTERVAL 16 HOUR), 'CONFIRMED', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+  (8802, 'usr_002', 2, DATE_ADD(CURDATE(), INTERVAL 18 HOUR), DATE_ADD(CURDATE(), INTERVAL 20 HOUR), 'CONFIRMED', DATE_ADD(DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 2 HOUR)),
+  (8803, 'usr_003', 4, DATE_ADD(CURDATE(), INTERVAL 16 HOUR), DATE_ADD(CURDATE(), INTERVAL 18 HOUR), 'CONFIRMED', DATE_SUB(NOW(), INTERVAL 20 HOUR)),
+  (8804, 'usr_001', 3, DATE_ADD(DATE_ADD(CURDATE(), INTERVAL 1 DAY), INTERVAL 12 HOUR), DATE_ADD(DATE_ADD(CURDATE(), INTERVAL 1 DAY), INTERVAL 14 HOUR), 'CONFIRMED', DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+  (8805, 'usr_004', 6, DATE_ADD(DATE_ADD(CURDATE(), INTERVAL 1 DAY), INTERVAL 18 HOUR), DATE_ADD(DATE_ADD(CURDATE(), INTERVAL 1 DAY), INTERVAL 20 HOUR), 'CONFIRMED', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+  (8806, 'usr_005', 2, DATE_ADD(CURDATE(), INTERVAL 10 HOUR), DATE_ADD(CURDATE(), INTERVAL 12 HOUR), 'CANCELLED', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+  (8807, 'usr_006', 5, DATE_ADD(CURDATE(), INTERVAL 10 HOUR), DATE_ADD(CURDATE(), INTERVAL 12 HOUR), 'CONFIRMED', DATE_ADD(DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 4 HOUR)),
+  (8808, 'usr_006', 5, DATE_ADD(CURDATE(), INTERVAL 12 HOUR), DATE_ADD(CURDATE(), INTERVAL 14 HOUR), 'CONFIRMED', DATE_ADD(DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 4 HOUR)),
+  (8809, 'usr_007', 3, DATE_ADD(CURDATE(), INTERVAL 20 HOUR), DATE_ADD(CURDATE(), INTERVAL 22 HOUR), 'CONFIRMED', DATE_SUB(NOW(), INTERVAL 5 HOUR));
 
 INSERT INTO ReservationEquipment (reservation_id, equipment_id) VALUES
   (8801, 1),

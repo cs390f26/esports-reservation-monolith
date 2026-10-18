@@ -7,7 +7,7 @@ confirmation when the database already holds rows, unless -y is passed.
 import argparse
 import sys
 
-from esports.database import connect, create_tables, database_path, has_tables, row_count
+from esports.database import connect, create_tables, database_target, has_tables, row_count
 
 
 def main(argv=None) -> None:
@@ -17,13 +17,13 @@ def main(argv=None) -> None:
 
     db = connect()
     if not args.yes and has_tables(db) and row_count(db):
-        answer = input(f"{database_path()} has data. Drop and recreate every table? [y/N] ")
+        answer = input(f"{database_target()} has data. Drop and recreate every table? [y/N] ")
         if answer.strip().lower() not in ("y", "yes"):
             print("Cancelled.")
             sys.exit(1)
     create_tables(db)
     db.close()
-    print(f"Created tables in {database_path()}")
+    print(f"Created tables in {database_target()}")
 
 
 if __name__ == "__main__":

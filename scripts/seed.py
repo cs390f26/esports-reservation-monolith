@@ -15,7 +15,7 @@ from esports.database import (
     clear,
     connect,
     create_tables,
-    database_path,
+    database_target,
     has_tables,
     row_count,
     seed,
@@ -37,11 +37,11 @@ def main(argv=None) -> None:
     db = connect()
     if not has_tables(db):
         create_tables(db)
-        print(f"Created tables in {database_path()}")
+        print(f"Created tables in {database_target()}")
     elif row_count(db):
         if not args.reset:
             print(
-                f"{database_path()} already has data. Run with --reset to replace it, or run scripts/clear.py first.",
+                f"{database_target()} already has data. Run with --reset to replace it, or run scripts/clear.py first.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -52,7 +52,7 @@ def main(argv=None) -> None:
     for table, count in table_counts(db).items():
         print(f"  {table}: {count}")
     db.close()
-    print(f"Seeded {database_path()} ({args.dataset})")
+    print(f"Seeded {database_target()} ({args.dataset})")
 
 
 if __name__ == "__main__":

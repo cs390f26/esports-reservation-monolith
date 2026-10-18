@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Flask, current_app, g, jsonify, redirect, request
+from flask import Flask, g, jsonify, redirect, request
 
-from esports.database import database_path
+from esports.database import DatabaseError, IntegrityError, connect
 
 START_HOURS = (10, 12, 14, 16, 18, 20)
 COMPUTER_STATUSES = ("AVAILABLE", "IN_USE", "MAINTENANCE", "OFFLINE")
@@ -12,8 +11,6 @@ EQUIPMENT_CATEGORIES = ("HEADSET", "CONTROLLER")
 
 # The UI in static/ is served from the site root, next to the API.
 app = Flask(__name__, static_url_path="")
-# Tests point this at a temporary file.
-app.config["DATABASE"] = str(database_path())
 
 
 def now():
@@ -23,9 +20,7 @@ def now():
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DATABASE"], isolation_level=None)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        g.db = connect()
     return g.db
 
 
@@ -59,7 +54,9 @@ def db_time(value):
 
 
 def iso_time(value):
-    return value.replace(" ", "T")
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%dT%H:%M:%S")
+    return str(value).replace(" ", "T")
 
 
 def space_json(row):
@@ -95,7 +92,7 @@ def reservation_json(db, row):
     equipment_ids = [
         r["equipment_id"]
         for r in db.execute(
-            "SELECT equipment_id FROM ReservationEquipment WHERE reservation_id = ? ORDER BY equipment_id",
+            "SELECT equipment_id FROM ReservationEquipment WHERE reservation_id = %s ORDER BY equipment_id",
             (row["reservation_id"],),
         )
     ]
@@ -118,7 +115,7 @@ def available_space_ids(db, start):
             """SELECT space_id FROM Spaces
                WHERE is_active = 1 AND space_id NOT IN (
                  SELECT space_id FROM Reservations
-                 WHERE status = 'CONFIRMED' AND start_time = ?)
+                 WHERE status = 'CONFIRMED' AND start_time = %s)
                ORDER BY space_id""",
             (db_time(start),),
         )
@@ -133,7 +130,7 @@ def available_equipment_ids(db, start):
                WHERE status != 'MAINTENANCE' AND status != 'OFFLINE' AND equipment_id NOT IN (
                  SELECT re.equipment_id FROM ReservationEquipment re
                  JOIN Reservations r ON r.reservation_id = re.reservation_id
-                 WHERE r.status = 'CONFIRMED' AND r.start_time = ?)
+                 WHERE r.status = 'CONFIRMED' AND r.start_time = %s)
                ORDER BY equipment_id""",
             (db_time(start),),
         )
@@ -188,9 +185,9 @@ def read_patch(allowed):
 
 
 def apply_update(db, table, id_column, row_id, fields):
-    assignments = ", ".join(f"{name} = ?" for name in fields)
+    assignments = ", ".join(f"{name} = %s" for name in fields)
     db.execute(
-        f"UPDATE {table} SET {assignments} WHERE {id_column} = ?",
+        f"UPDATE {table} SET {assignments} WHERE {id_column} = %s",
         (*fields.values(), row_id),
     )
 
@@ -243,12 +240,12 @@ def update_space(space_id):
             return error(400, "INVALID_FIELD", "is_active must be true or false.", field="is_active")
         fields["is_active"] = body["is_active"]
     db = get_db()
-    row = db.execute("SELECT * FROM Spaces WHERE space_id = ?", (space_id,)).fetchone()
+    row = db.execute("SELECT * FROM Spaces WHERE space_id = %s", (space_id,)).fetchone()
     if row is None:
         return error(404, "SPACE_NOT_FOUND", f"Space {space_id} does not exist.", resource_ids=[space_id])
     if fields:
         apply_update(db, "Spaces", "space_id", space_id, fields)
-        row = db.execute("SELECT * FROM Spaces WHERE space_id = ?", (space_id,)).fetchone()
+        row = db.execute("SELECT * FROM Spaces WHERE space_id = %s", (space_id,)).fetchone()
     return jsonify(space_json(row))
 
 
@@ -284,7 +281,7 @@ def update_computer(computer_id):
             )
         fields["status"] = body["status"]
     db = get_db()
-    row = db.execute("SELECT * FROM Computers WHERE computer_id = ?", (computer_id,)).fetchone()
+    row = db.execute("SELECT * FROM Computers WHERE computer_id = %s", (computer_id,)).fetchone()
     if row is None:
         return error(
             404,
@@ -294,7 +291,7 @@ def update_computer(computer_id):
         )
     if fields:
         apply_update(db, "Computers", "computer_id", computer_id, fields)
-        row = db.execute("SELECT * FROM Computers WHERE computer_id = ?", (computer_id,)).fetchone()
+        row = db.execute("SELECT * FROM Computers WHERE computer_id = %s", (computer_id,)).fetchone()
     return jsonify(computer_json(row))
 
 
@@ -334,7 +331,7 @@ def update_equipment(equipment_id):
             )
         fields["status"] = body["status"]
     db = get_db()
-    row = db.execute("SELECT * FROM Equipment WHERE equipment_id = ?", (equipment_id,)).fetchone()
+    row = db.execute("SELECT * FROM Equipment WHERE equipment_id = %s", (equipment_id,)).fetchone()
     if row is None:
         return error(
             404,
@@ -344,7 +341,7 @@ def update_equipment(equipment_id):
         )
     if fields:
         apply_update(db, "Equipment", "equipment_id", equipment_id, fields)
-        row = db.execute("SELECT * FROM Equipment WHERE equipment_id = ?", (equipment_id,)).fetchone()
+        row = db.execute("SELECT * FROM Equipment WHERE equipment_id = %s", (equipment_id,)).fetchone()
     return jsonify(equipment_json(row))
 
 
@@ -381,13 +378,13 @@ def list_reservations():
     sql = "SELECT * FROM Reservations WHERE 1 = 1"
     params = []
     if "user_id" in request.args:
-        sql += " AND user_name = ?"
+        sql += " AND user_name = %s"
         params.append(request.args["user_id"])
     if "space_id" in request.args:
         space_id = request.args.get("space_id", type=int)
         if space_id is None or space_id < 1:
             return error(400, "INVALID_FILTER", "Check the reservation filters and try again.")
-        sql += " AND space_id = ?"
+        sql += " AND space_id = %s"
         params.append(space_id)
     if "active_only" in request.args:
         flag = request.args["active_only"].lower()
@@ -395,7 +392,7 @@ def list_reservations():
             return error(400, "INVALID_PARAMETER", "active_only must be true or false.", field="active_only")
         if flag == "true":
             current = db_time(now())
-            sql += " AND status = 'CONFIRMED' AND start_time <= ? AND end_time > ?"
+            sql += " AND status = 'CONFIRMED' AND start_time <= %s AND end_time > %s"
             params.extend([current, current])
     sql += " ORDER BY created_at DESC"
     db = get_db()
@@ -424,29 +421,36 @@ def create_reservation():
         return error(400, "BLOCK_STARTED", "Choose a time block that has not started yet.")
 
     db = get_db()
-    # BEGIN IMMEDIATE takes the write lock before checking, so two requests
-    # cannot both pass the availability checks for the same block.
-    db.execute("BEGIN IMMEDIATE")
+    # Lock the space (and any equipment) before checking, so two requests cannot
+    # both pass the availability checks for the same block.
+    db.begin()
     try:
-        space = db.execute("SELECT is_active FROM Spaces WHERE space_id = ?", (space_id,)).fetchone()
+        space = db.execute(
+            "SELECT is_active FROM Spaces WHERE space_id = %s FOR UPDATE",
+            (space_id,),
+        ).fetchone()
         if space is None:
-            db.execute("ROLLBACK")
+            db.rollback()
             return error(404, "SPACE_NOT_FOUND", "That space could not be found.")
         if not space["is_active"]:
-            db.execute("ROLLBACK")
+            db.rollback()
             return error(409, "SPACE_INACTIVE", "This space is not open for reservations. Choose another space.")
 
         for equipment_id in equipment_ids:
-            if db.execute("SELECT 1 FROM Equipment WHERE equipment_id = ?", (equipment_id,)).fetchone() is None:
-                db.execute("ROLLBACK")
+            locked = db.execute(
+                "SELECT 1 FROM Equipment WHERE equipment_id = %s FOR UPDATE",
+                (equipment_id,),
+            ).fetchone()
+            if locked is None:
+                db.rollback()
                 return error(404, "EQUIPMENT_NOT_FOUND", "That equipment item could not be found.")
 
         booked_space = db.execute(
-            "SELECT 1 FROM Reservations WHERE space_id = ? AND start_time = ? AND status = 'CONFIRMED'",
+            "SELECT 1 FROM Reservations WHERE space_id = %s AND start_time = %s AND status = 'CONFIRMED'",
             (space_id, db_time(start)),
         ).fetchone()
         if booked_space:
-            db.execute("ROLLBACK")
+            db.rollback()
             return error(
                 409,
                 "SPACE_BOOKED",
@@ -454,41 +458,51 @@ def create_reservation():
             )
 
         if equipment_ids:
-            placeholders = ",".join("?" * len(equipment_ids))
+            placeholders = ", ".join(["%s"] * len(equipment_ids))
             booked_item = db.execute(
                 f"""SELECT 1 FROM ReservationEquipment re
                     JOIN Reservations r ON r.reservation_id = re.reservation_id
-                    WHERE r.status = 'CONFIRMED' AND r.start_time = ?
+                    WHERE r.status = 'CONFIRMED' AND r.start_time = %s
                       AND re.equipment_id IN ({placeholders})""",
                 (db_time(start), *equipment_ids),
             ).fetchone()
             if booked_item:
-                db.execute("ROLLBACK")
+                db.rollback()
                 return error(409, "EQUIPMENT_UNAVAILABLE", "This equipment is unavailable during your selected time.")
 
         cursor = db.execute(
             """INSERT INTO Reservations (user_name, space_id, start_time, end_time, status, created_at)
-               VALUES (?, ?, ?, ?, 'CONFIRMED', ?)""",
+               VALUES (%s, %s, %s, %s, 'CONFIRMED', %s)""",
             (user_id, space_id, db_time(start), db_time(end), db_time(now())),
         )
         reservation_id = cursor.lastrowid
-        db.executemany(
-            "INSERT INTO ReservationEquipment (reservation_id, equipment_id) VALUES (?, ?)",
-            [(reservation_id, item_id) for item_id in equipment_ids],
-        )
-        db.execute("COMMIT")
-    except sqlite3.Error:
-        db.execute("ROLLBACK")
+        if equipment_ids:
+            db.executemany(
+                "INSERT INTO ReservationEquipment (reservation_id, equipment_id) VALUES (%s, %s)",
+                [(reservation_id, item_id) for item_id in equipment_ids],
+            )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if exc.args and exc.args[0] == 1062 and "one_confirmed_booking_per_space" in str(exc):
+            return error(
+                409,
+                "SPACE_BOOKED",
+                "This space is already booked during your selected time. Choose another space or time.",
+            )
+        return error(500, "RESERVATION_FAILED", "We couldn't complete your reservation. Please try again.")
+    except DatabaseError:
+        db.rollback()
         return error(500, "RESERVATION_FAILED", "We couldn't complete your reservation. Please try again.")
 
-    row = db.execute("SELECT * FROM Reservations WHERE reservation_id = ?", (reservation_id,)).fetchone()
+    row = db.execute("SELECT * FROM Reservations WHERE reservation_id = %s", (reservation_id,)).fetchone()
     return jsonify(reservation_json(db, row)), 201
 
 
 @app.get("/reservations/<int:reservation_id>")
 def get_reservation(reservation_id):
     db = get_db()
-    row = db.execute("SELECT * FROM Reservations WHERE reservation_id = ?", (reservation_id,)).fetchone()
+    row = db.execute("SELECT * FROM Reservations WHERE reservation_id = %s", (reservation_id,)).fetchone()
     if row is None:
         return error(404, "RESERVATION_NOT_FOUND", "That reservation could not be found.")
     return jsonify(reservation_json(db, row))
@@ -497,14 +511,14 @@ def get_reservation(reservation_id):
 @app.post("/reservations/<int:reservation_id>/cancel")
 def cancel_reservation(reservation_id):
     db = get_db()
-    row = db.execute("SELECT * FROM Reservations WHERE reservation_id = ?", (reservation_id,)).fetchone()
+    row = db.execute("SELECT * FROM Reservations WHERE reservation_id = %s", (reservation_id,)).fetchone()
     if row is None:
         return error(404, "RESERVATION_NOT_FOUND", "That reservation could not be found.")
     if row["status"] != "CANCELLED":
-        if datetime.fromisoformat(row["end_time"]) <= now():
+        if datetime.fromisoformat(str(row["end_time"]).replace(" ", "T")) <= now():
             return error(409, "BOOKING_ENDED", "This reservation has already ended.")
-        db.execute("UPDATE Reservations SET status = 'CANCELLED' WHERE reservation_id = ?", (reservation_id,))
-        row = db.execute("SELECT * FROM Reservations WHERE reservation_id = ?", (reservation_id,)).fetchone()
+        db.execute("UPDATE Reservations SET status = 'CANCELLED' WHERE reservation_id = %s", (reservation_id,))
+        row = db.execute("SELECT * FROM Reservations WHERE reservation_id = %s", (reservation_id,)).fetchone()
     return jsonify(reservation_json(db, row))
 
 

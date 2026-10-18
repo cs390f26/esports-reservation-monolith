@@ -7,7 +7,7 @@ Prompts for confirmation unless -y is passed.
 import argparse
 import sys
 
-from esports.database import RESERVATION_TABLES, TABLES, clear, connect, database_path, has_tables
+from esports.database import RESERVATION_TABLES, TABLES, clear, connect, database_target, has_tables
 
 
 def main(argv=None) -> None:
@@ -22,12 +22,12 @@ def main(argv=None) -> None:
 
     db = connect()
     if not has_tables(db):
-        print(f"{database_path()} has no tables. Run scripts/init_db.py first.", file=sys.stderr)
+        print(f"{database_target()} has no tables. Run scripts/init_db.py first.", file=sys.stderr)
         sys.exit(1)
 
     tables = RESERVATION_TABLES if args.reservations else TABLES
     if not args.yes:
-        answer = input(f"Delete all rows from {', '.join(tables)} in {database_path()}? [y/N] ")
+        answer = input(f"Delete all rows from {', '.join(tables)} in {database_target()}? [y/N] ")
         if answer.strip().lower() not in ("y", "yes"):
             print("Cancelled.")
             sys.exit(1)
@@ -35,7 +35,7 @@ def main(argv=None) -> None:
     for table, deleted in clear(db, args.reservations).items():
         print(f"  {table}: deleted {deleted}")
     db.close()
-    print(f"Cleared {database_path()}")
+    print(f"Cleared {database_target()}")
 
 
 if __name__ == "__main__":
