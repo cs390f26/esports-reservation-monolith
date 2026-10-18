@@ -16,7 +16,7 @@ def run(name, *args, answer=None):
     )
 
 
-def test_seed_then_refuse_then_reset(db_path):
+def test_seed_then_refuse_then_reset(db_name):
     first = run("seed")
     assert first.returncode == 0, first.stderr
     assert "Spaces: 6" in first.stdout
@@ -30,7 +30,7 @@ def test_seed_then_refuse_then_reset(db_path):
     assert "(overwatch)" in reset.stdout
 
 
-def test_clear_reservations_then_everything(db_path):
+def test_clear_reservations_then_everything(db_name):
     run("seed")
     partial = run("clear", "-y", "--reservations")
     assert partial.returncode == 0, partial.stderr
@@ -41,20 +41,20 @@ def test_clear_reservations_then_everything(db_path):
     assert "Spaces: deleted 6" in full.stdout
 
 
-def test_clear_asks_first(db_path):
+def test_clear_asks_first(db_name):
     run("seed")
     cancelled = run("clear", answer="n\n")
     assert cancelled.returncode == 1
     assert "Cancelled" in cancelled.stdout
 
 
-def test_clear_needs_tables(db_path):
+def test_clear_needs_tables(db_name):
     result = run("clear", "-y")
     assert result.returncode == 1
     assert "no tables" in result.stderr
 
 
-def test_init_db_asks_before_wiping_data(db_path):
+def test_init_db_asks_before_wiping_data(db_name):
     run("seed")
     cancelled = run("init_db", answer="no\n")
     assert cancelled.returncode == 1

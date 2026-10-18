@@ -11,6 +11,27 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: esports
+          MYSQL_DATABASE: esports
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pesports"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      ESPORTS_DB_HOST: 127.0.0.1
+      ESPORTS_DB_PORT: "3306"
+      ESPORTS_DB_USER: root
+      ESPORTS_DB_PASSWORD: esports
+      ESPORTS_DB_NAME: esports
+
     steps:
       - uses: actions/checkout@v5
 

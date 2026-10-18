@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 
 from conftest import TODAY, TOMORROW
+from esports import database
 
 
 def test_create_reservation(book):
@@ -190,15 +191,14 @@ def test_cannot_cancel_after_the_block_ends(client, book, clock):
 
 
 def test_database_error_returns_500_and_saves_nothing(client, book, inventory_db):
-    import sqlite3
-
     # Make the equipment link insert fail after the reservation row is written.
-    db = sqlite3.connect(inventory_db)
+    db = database.connect()
+    db.execute("SET GLOBAL log_bin_trust_function_creators = 1")
     db.execute(
         """CREATE TRIGGER fail_links BEFORE INSERT ON ReservationEquipment
-           BEGIN SELECT RAISE(ABORT, 'disk on fire'); END"""
+           FOR EACH ROW
+           SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'disk on fire'"""
     )
-    db.commit()
     db.close()
 
     response = book(equipment_ids=[1])

@@ -1,0 +1,18 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: esports
+      MYSQL_DATABASE: esports
+      MYSQL_USER: esports
+      MYSQL_PASSWORD: esports
+      TZ: America/New_York
+    ports:
+      - "${ESPORTS_DB_PORT:-3306}:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=128M
+      - --log-bin-trust-function-creators=1
+    volumes:
+      - ./deploy/mysql-init.sql:/docker-entrypoint-initdb.d/01-grants.sql:ro
